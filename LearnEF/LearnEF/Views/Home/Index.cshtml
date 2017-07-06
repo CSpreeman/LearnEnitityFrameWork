@@ -1,0 +1,207 @@
+﻿<div class="col-md-6 container">
+    <h1>Make an Appointment</h1>
+    <form class="form-group" id="vetForm">
+        <label for="firstName">First Name</label>
+        <input id="firstName" name="firstName" type="text" class="form-control" />
+
+        <label for="lastName">Last Name</label>
+        <input id="lastName" name="lastName" type="text" class="form-control" />
+
+        <label for="petName">Pets Name</label>
+        <input id="petName" name="petName" type="text" class="form-control" />
+
+        <label for="petSpecies">Species</label>
+        <input id="petSpecies" name="petSpecies" type="text" class="form-control" />
+
+        <label for="petBreed">Breed</label>
+        <input id="petBreed" name="petBreed" type="text" class="form-control" />
+
+        <label for="apptDateTime">When Would you Like an Appointment?</label>
+        <input id="apptDateTime" name="apptDateTime" type="datetime-local" class="form-control" />
+
+        <label for="apptReason">Reason for Making an Appointment?</label>
+        <textarea id="apptReason" name="apptReason" type="text" rows="5" class="form-control"></textarea>
+        <br />
+        <button type="submit" class="btn btn-primary" id="submitAppForm">Submit</button>
+    </form>
+</div>
+<div class="col-md-6 container">
+    <br />
+    <div class=""><h2>Appointments</h2></div>
+    <ul class="nav nav-tabs">
+        <li class="active">
+            <a href="#apptContainer" data-toggle="tab">New Appointments</a>
+        </li>
+        <li>
+            <a href="#confirmedAppContainer" data-toggle="tab">Confirmed Appointments</a>
+        </li>
+        <li>
+            <a href="#changedAppContainer" data-toggle="tab">Changed Appointments</a>
+        </li>
+    </ul>
+
+    <div class="tab-content">
+        <div class="tab-pane active" id="apptContainer">
+        </div>
+        <div class="tab-pane" id="confirmedAppContainer">
+        </div>
+        <div class="tab-pane" id="changedAppContainer">
+        </div>
+    </div>
+</div>
+
+
+
+@section scripts{
+    <script>
+        $(document).ready(function () {
+            console.log("Start Up Finished")
+            $("#submitAppForm").on("click", submitAppForm);
+            $("#apptContainer").on("click", ".confirmDate", confirmDate)
+            $("#apptContainer").on("click", ".changeDate", changeDate)
+            $("#apptContainer").on("click", ".delete", deleteAppt)
+            getAllAppts();
+        })
+        var allAppointments = [];
+
+        submitAppForm = function (e) {
+            if (e)
+                e.preventDefault();
+            var payload = {
+                FirstName: $("#firstName").val(),
+                LastName: $("#lastName").val(),
+                Name: $("#petName").val(),
+                Species: $("#petSpecies").val(),
+                Breed: $("#petBreed").val(),
+                RequestedDateTime: $("#apptDateTime").val(),
+                AppointmentType: $("#apptReason").val(),
+            };
+
+            sendAjax("appt", JSON.stringify(payload), "POST", submitAppFormSuccess, onError);
+        }
+
+        submitAppFormSuccess = function (data, textStatus, jqXHR) {
+            console.log("Success")
+        }
+
+        getAllAppts = function () {
+            sendAjax("appt", null, "GET", getAllApptsSuccess, onError);
+        }
+
+        getAllApptsSuccess = function (data, textStatus, jqXHR) {
+            $.each(data, function (item, val) {
+                var $template = $($("#apptTemplate").html()).clone();
+                $template.find(".name").text(val.firstName + " " + val.lastName);
+                $template.find(".petName").text(val.name)
+                $template.find(".species").text(val.species)
+                $template.find(".breed").text(val.breed)
+                $template.find(".apptDate").text(val.requestedDateTime)
+                $template.find(".reason").text(val.appointmentType);
+                $template.attr("ApptId", val.appointment_Id)
+                if (val.appointmentStatus == 0)
+                {
+                    $template.appendTo("#apptContainer");
+                } else if (val.appointmentStatus == 1) {
+                    $template.appendTo("#confirmedAppContainer");
+                } else {
+                    $template.appendTo("#changedAppContainer");
+                }
+                allAppointments.push(val);
+            })
+        }
+
+        confirmDate = function () {
+            var appt = this.closest(".panel-body");
+
+            var id = $(appt).attr("apptid");
+
+            var item = searchAppts(allAppointments, id);
+
+            var payload = {
+                FirstName: item.firstName,
+                LastName: item.lastName,
+                Name: item.name,
+                Species: item.species,
+                Breed: item.breed,
+                RequestedDateTime: item.requestedDateTime,
+                AppointmentType: item.appointmentType,
+                appointmentStatus: 1,
+                appointment_Id: item.appointment_Id,
+                createdDateTime: item.createdDateTime,
+                animal_Id: item.animal_Id,
+                user_Id: item.user_Id
+            }
+
+            sendAjax("appt/" + id, JSON.stringify(payload), "PUT", confirmDateSuccess, onError)
+        }
+
+        confirmDateSuccess = function (data, textStatus, jqXHR) {
+            console.log(data)
+        }
+
+        changeDate = function () {
+
+
+        }
+
+        deleteAppt = function () {
+            var appt = this.closest(".panel-body");
+            var id = $(appt).attr("apptid");
+            sendAjax("appt/" + id, null, "DELETE", deleteApptSuccess, onError)
+        }
+
+        deleteApptSuccess = function () {
+            console.log("deleted")
+        }
+
+        searchAppts = function (array, id) {
+
+            for (var i = 0; i < array.length ; i++) {
+                var value = array[i];
+                if (value.appointment_Id == id)
+                    return value;
+            }
+
+        }
+
+        onError = function () {
+            console.log("There was an error")
+        }
+
+        sendAjax = function (url, data, type, onSuccess, onError) {
+
+            var url = "/api/" + url;
+
+            var settings = {
+                data: data,
+                contentType: "application/json",
+                type: type,
+                dataType: "json",
+                success: onSuccess,
+                error: onError
+            };
+
+            $.ajax(url, settings)
+        }
+
+    </script>
+    <script type="text/template" id="apptTemplate">
+        <div class="panel-body">
+            <div class="col-md-12">
+                <button class="btn btn-sm btn-danger pull-right delete">Delete</button>
+                <br />
+            </div>
+            <p class="col-md-6"><strong>Name: </strong><span class="name"></span></p>
+            <p class="col-md-6"><strong>Pet Name: </strong><span class="petName"></span></p>
+            <p class="col-md-6"><strong>Species: </strong><span class="species"></span></p>
+            <p class="col-md-6"><strong>Breed: </strong><span class="breed"></span></p>
+            <p class="col-md-6"><strong>Appointment Date: </strong><span class="apptDate"></span></p>
+            <p class="col-md-12"><strong>Reason: </strong><span class="reason"></span></p>
+            <div class="col-md-12 apptBtns">
+                <button type="button" class="btn btn-success btn-sm pull-left confirmDate">Confirm Date and Appointment</button>
+                <button type="button" class="btn btn-default btn-sm pull-right changeDate">Request Change to Date</button>
+            </div>
+        </div>
+        <hr />
+    </script>
+}
